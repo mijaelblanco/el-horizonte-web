@@ -13,6 +13,7 @@ import 'package:news_admin/utils/next_screen.dart';
 import 'package:news_admin/utils/toast.dart';
 import 'package:news_admin/widgets/article_preview.dart';
 import 'package:provider/provider.dart';
+import '../blocs/notification_bloc.dart';
 import '../utils/styles.dart';
 
 
@@ -59,9 +60,6 @@ class _ArticlesState extends State<Articles> {
     }
   }
 
-
-
-
   Future<Null> _getData() async {
     QuerySnapshot data;
 
@@ -69,13 +67,13 @@ class _ArticlesState extends State<Articles> {
       if (_lastVisible == null)
       data = await firestore
           .collection(collectionName)
-          .orderBy(_orderBy, descending: _descending)
+          .orderBy('date', descending: true)
           .limit(10)
           .get();
     else
       data = await firestore
           .collection(collectionName)
-          .orderBy(_orderBy, descending: _descending)
+          .orderBy('date', descending: true)
           .startAfter([_lastVisible![_orderBy]])
           .limit(10)
           .get();
@@ -84,14 +82,14 @@ class _ArticlesState extends State<Articles> {
       data = await firestore
           .collection(collectionName)
           .where('content type', isEqualTo: _sortBy)
-          .orderBy(_orderBy, descending: _descending)
+          .orderBy('date', descending: true)
           .limit(10)
           .get();
     else
       data = await firestore
           .collection(collectionName)
           .where('content type', isEqualTo: _sortBy)
-          .orderBy(_orderBy, descending: _descending)
+          .orderBy('date', descending: true)
           .startAfter([_lastVisible![_orderBy]])
           .limit(10)
           .get();
@@ -598,6 +596,24 @@ class _ArticlesState extends State<Articles> {
                             label: Text('Add to Featured')),
                       ),
 
+                      SizedBox(width: 10),
+
+                      Container(
+                        height: 35,
+                        padding: EdgeInsets.only(left: 8, right: 8),
+                        decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            border: Border.all(color: Colors.grey[300]!),
+                            borderRadius: BorderRadius.circular(30)),
+                        child: TextButton.icon(
+                            onPressed: () async {
+                              print(d.timestamp);
+                      await handleSendNotification(d.title,d.timestamp, d.thumbnailImagelUrl ,d.contentType);
+                            },
+                            icon: Icon(LineIcons.paperPlane),
+                            label: Text('Send Notification Now')),
+                      ),
+
                       
                     ],
                   ),
@@ -706,5 +722,19 @@ class _ArticlesState extends State<Articles> {
     );
   }
 
+    handleSendNotification(String? title, String? timestamp, String? thumbnailImagelUrl, String? contentType,) async {
+    final AdminBloc ab = Provider.of<AdminBloc>(context, listen: false);
+    if (ab.isAdmin == false) {
+        openDialog(context, 'You are a Tester', 'Only admin can send notifications');
+      } else {
+        setState ((() => _isLoading = true));
+        await context.read<NotificationBloc>().sendPostNotification(title!, timestamp!, thumbnailImagelUrl!,contentType! )
+          .then((value) => context.read<AdminBloc>().increaseCount('notifications_count'))
+          .then((value) => openDialog(context, 'Sent Successfully', 'The notification has been sent successfully to all of the users of the app'));
+        setState ((() => _isLoading = false));
+        
+      }
+
+  }
 
 }
